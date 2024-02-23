@@ -1,5 +1,5 @@
 use std::{
-    io::{stdout, Stdout, Write},
+    io::{stdout, Result, Stdout, Write},
     time::Duration,
 };
 
@@ -17,6 +17,7 @@ struct World {
     maxc: u16,
     maxl: u16,
     map: Vec<(u16, u16)>,
+    died: bool,
 }
 
 fn draw(mut sc: &Stdout, world: &World) -> std::io::Result<()> {
@@ -39,6 +40,15 @@ fn draw(mut sc: &Stdout, world: &World) -> std::io::Result<()> {
     Ok(())
 }
 
+fn physics(mut world: World) -> Result<World> {
+    if world.player_c <= world.map[world.player_l as usize].0
+        || world.player_c >= world.map[world.player_l as usize].1
+    {
+        world.died = true;
+    }
+    Ok(world)
+}
+
 fn main() -> std::io::Result<()> {
     // init the screen
     let mut sc = stdout();
@@ -53,9 +63,10 @@ fn main() -> std::io::Result<()> {
         maxc: maxc,
         maxl: maxl,
         map: vec![((maxc / 2) - 5, (maxc / 2) + 5); maxl as usize],
+        died: false,
     };
 
-    loop {
+    while !world.died {
         if poll(Duration::from_millis(10))? {
             let key = read().unwrap();
             match key {
@@ -89,11 +100,15 @@ fn main() -> std::io::Result<()> {
             // Timeout expired and no `Event` is available
         }
 
-        // physics()
+        world = physics(world).unwrap();
 
         draw(&sc, &world)?;
     }
+    // TODO: check for died and show a message
+
     sc.execute(Show)?;
     disable_raw_mode()?;
+    sc.execute(Clear(ClearType::All))?;
+    sc.execute(Print("Thanks for playing"))?;
     Ok(())
 }
