@@ -24,6 +24,32 @@ struct World {
     next_left: u16,
 }
 
+impl World {
+    fn move_up(&mut self) {
+        if self.player_l > 1 {
+            self.player_l -= 1;
+        }
+    }
+
+    fn move_down(&mut self, maxl: u16) {
+        if self.player_l < maxl - 1 {
+            self.player_l += 1;
+        }
+    }
+
+    fn move_left(&mut self) {
+        if self.player_c > 1 {
+            self.player_c -= 1;
+        }
+    }
+
+    fn move_right(&mut self, maxc: u16) {
+        if self.player_c < maxc - 1 {
+            self.player_c += 1;
+        }
+    }
+}
+
 fn draw(mut sc: &Stdout, world: &World) -> std::io::Result<()> {
     sc.queue(Clear(ClearType::All))?;
 
@@ -117,46 +143,14 @@ fn main() -> std::io::Result<()> {
                         KeyCode::Char('q') => {
                             break;
                         }
-                        KeyCode::Char('w') => {
-                            if world.player_l > 1 {
-                                world.player_l -= 1;
-                            }
-                        }
-                        KeyCode::Up => {
-                            if world.player_l > 1 {
-                                world.player_l -= 1;
-                            }
-                        }
-                        KeyCode::Char('s') => {
-                            if world.player_l < maxl - 1 {
-                                world.player_l += 1;
-                            }
-                        }
-                        KeyCode::Down => {
-                            if world.player_l < maxl - 1 {
-                                world.player_l += 1;
-                            }
-                        }
-                        KeyCode::Char('a') => {
-                            if world.player_c > 1 {
-                                world.player_c -= 1;
-                            }
-                        }
-                        KeyCode::Left => {
-                            if world.player_c > 1 {
-                                world.player_c -= 1;
-                            }
-                        }
-                        KeyCode::Char('d') => {
-                            if world.player_c < maxc - 1 {
-                                world.player_c += 1;
-                            }
-                        }
-                        KeyCode::Right => {
-                            if world.player_c < maxc - 1 {
-                                world.player_c += 1;
-                            }
-                        }
+                        KeyCode::Char('w') => world.move_up(),
+                        KeyCode::Up => world.move_up(),
+                        KeyCode::Char('s') => world.move_down(maxl),
+                        KeyCode::Down => world.move_down(maxl),
+                        KeyCode::Char('a') => world.move_left(),
+                        KeyCode::Left => world.move_left(),
+                        KeyCode::Char('d') => world.move_right(maxc),
+                        KeyCode::Right => world.move_right(maxc),
                         _ => {}
                     }
                 }
