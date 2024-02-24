@@ -122,7 +122,17 @@ fn main() -> std::io::Result<()> {
                                 world.player_l -= 1;
                             }
                         }
+                        KeyCode::Up => {
+                            if world.player_l > 1 {
+                                world.player_l -= 1;
+                            }
+                        }
                         KeyCode::Char('s') => {
+                            if world.player_l < maxl - 1 {
+                                world.player_l += 1;
+                            }
+                        }
+                        KeyCode::Down => {
                             if world.player_l < maxl - 1 {
                                 world.player_l += 1;
                             }
@@ -132,7 +142,17 @@ fn main() -> std::io::Result<()> {
                                 world.player_c -= 1;
                             }
                         }
+                        KeyCode::Left => {
+                            if world.player_c > 1 {
+                                world.player_c -= 1;
+                            }
+                        }
                         KeyCode::Char('d') => {
+                            if world.player_c < maxc - 1 {
+                                world.player_c += 1;
+                            }
+                        }
+                        KeyCode::Right => {
                             if world.player_c < maxc - 1 {
                                 world.player_c += 1;
                             }
