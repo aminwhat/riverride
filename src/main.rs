@@ -1,4 +1,10 @@
-use core::time;
+use rand::{thread_rng, Rng};
+use std::{
+    io::{stdout, Result, Stdout, Write},
+    time::Duration,
+};
+use std::{thread, time};
+
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{poll, read, Event, KeyCode},
@@ -6,22 +12,16 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, size, Clear, ClearType},
     ExecutableCommand, QueueableCommand,
 };
-use rand::{thread_rng, Rng};
-use std::{
-    io::{stdout, Result, Stdout, Write},
-    thread,
-    time::Duration,
-};
 
 struct World {
     player_c: u16,
     player_l: u16,
+    map: Vec<(u16, u16)>,
     maxc: u16,
     maxl: u16,
-    map: Vec<(u16, u16)>,
-    died: bool,
-    next_start: u16,
-    next_end: u16,
+    died: bool, // TODO: create enum with died, playing, animation, paused
+    next_right: u16,
+    next_left: u16,
 }
 
 fn draw(mut sc: &Stdout, world: &World) -> std::io::Result<()> {
@@ -45,40 +45,41 @@ fn draw(mut sc: &Stdout, world: &World) -> std::io::Result<()> {
 }
 
 fn physics(mut world: World) -> Result<World> {
-    // check if player died
-    if world.player_c <= world.map[world.player_l as usize].0
+    let mut rng = thread_rng();
+
+    // check if player hit the ground
+    if world.player_c < world.map[world.player_l as usize].0
         || world.player_c >= world.map[world.player_l as usize].1
     {
         world.died = true;
     }
 
-    // shift the map
+    // move the map downward
     for l in (0..world.map.len() - 1).rev() {
         world.map[l + 1] = world.map[l];
     }
-    if world.next_end < world.map[0].1 {
-        world.map[0].1 -= 1;
+    if world.next_left > world.map[0].0 {
+        world.map[0].0 += 1;
     }
-    if world.next_end > world.map[0].1 {
-        world.map[0].1 += 1
-    }
-    if world.next_start < world.map[0].0 {
+    if world.next_left < world.map[0].0 {
         world.map[0].0 -= 1;
     }
-    if world.next_start > world.map[0].0 {
-        world.map[0].0 += 1
+    if world.next_right > world.map[0].1 {
+        world.map[0].1 += 1;
     }
-
-    let mut rng = thread_rng();
-    if rng.gen_range(0..10) > 7 {
-        // TODOL possible bug: might go out of range
-        if world.next_start == world.map[0].0 && world.next_end == world.map[0].1 {
-            world.next_start = rng.gen_range(world.map[0].0 - 5..world.map[0].1 - 5);
-            world.next_end = rng.gen_range(world.map[0].0 + 5..world.map[0].1 + 5);
-            if world.next_end - world.next_start <= 3 {
-                world.next_start -= 3;
-            }
-        }
+    if world.next_right < world.map[0].1 {
+        world.map[0].1 -= 1;
+    }
+    // TODO: below randoms may 1) go outside of range
+    if world.next_left == world.map[0].0 && rng.gen_range(0..10) >= 7 {
+        world.next_left = rng.gen_range(world.next_left - 5..world.next_left + 5)
+    }
+    if world.next_right == world.map[0].1 && rng.gen_range(0..10) >= 7 {
+        world.next_right = rng.gen_range(world.next_right - 5..world.next_right + 5)
+    }
+    if world.next_right - world.next_left < 3 {
+        // todo: check abs
+        world.next_right += 3;
     }
     Ok(world)
 }
@@ -90,16 +91,17 @@ fn main() -> std::io::Result<()> {
     sc.execute(Hide)?;
     enable_raw_mode()?;
 
-    // init the game
-    let mut world: World = World {
+    // init the world
+    let slowness = 100;
+    let mut world = World {
         player_c: maxc / 2,
         player_l: maxl - 1,
+        map: vec![(maxc / 2 - 5, maxc / 2 + 5); maxl as usize],
         maxc: maxc,
         maxl: maxl,
-        map: vec![((maxc / 2) - 5, (maxc / 2) + 5); maxl as usize],
         died: false,
-        next_end: maxc / 2 + 10,
-        next_start: maxc / 2 - 10,
+        next_left: maxc / 2 - 7,
+        next_right: maxc / 2 + 7,
     };
 
     while !world.died {
@@ -109,30 +111,35 @@ fn main() -> std::io::Result<()> {
                 let _ = read();
             }
             match key {
-                Event::Key(event) => match event.code {
-                    KeyCode::Char('q') => break,
-                    KeyCode::Char('w') => {
-                        if world.player_l > 1 {
-                            world.player_l -= 1
-                        };
+                Event::Key(event) => {
+                    // I'm reading from keyboard into event
+                    match event.code {
+                        KeyCode::Char('q') => {
+                            break;
+                        }
+                        KeyCode::Char('w') => {
+                            if world.player_l > 1 {
+                                world.player_l -= 1;
+                            }
+                        }
+                        KeyCode::Char('s') => {
+                            if world.player_l < maxl - 1 {
+                                world.player_l += 1;
+                            }
+                        }
+                        KeyCode::Char('a') => {
+                            if world.player_c > 1 {
+                                world.player_c -= 1;
+                            }
+                        }
+                        KeyCode::Char('d') => {
+                            if world.player_c < maxc - 1 {
+                                world.player_c += 1;
+                            }
+                        }
+                        _ => {}
                     }
-                    KeyCode::Char('s') => {
-                        if world.player_l < maxl - 1 {
-                            world.player_l += 1
-                        };
-                    }
-                    KeyCode::Char('a') => {
-                        if world.player_c > 1 {
-                            world.player_c -= 1
-                        };
-                    }
-                    KeyCode::Char('d') => {
-                        if world.player_c < maxc - 1 {
-                            world.player_c += 1
-                        };
-                    }
-                    _ => {}
-                },
+                }
                 _ => {}
             }
         } else {
@@ -142,13 +149,15 @@ fn main() -> std::io::Result<()> {
         world = physics(world).unwrap();
 
         draw(&sc, &world)?;
-        thread::sleep(time::Duration::from_millis(100));
-    }
-    // TODO: check for died and show a message
 
+        thread::sleep(time::Duration::from_millis(slowness));
+    }
+
+    // game is finished
+    sc.queue(Clear(ClearType::All))?;
+    sc.queue(MoveTo(0, 3))?;
+    sc.queue(Print("Good game! Thanks.\n"))?;
     sc.execute(Show)?;
     disable_raw_mode()?;
-    sc.execute(Clear(ClearType::All))?;
-    sc.execute(Print("Thanks for playing"))?;
     Ok(())
 }
